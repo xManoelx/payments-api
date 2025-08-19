@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, render_template
 from repository.database import db
 from db_models.payments import Payment
 from datetime import datetime, timedelta
@@ -20,17 +20,21 @@ def create_pix_payment():
     if 'value' not in data:
         return jsonify({"message": "Dados inválidos"}), 400
 
+    # Data de expiração soma-se mais um dia 
     expiration_date = datetime.now() + timedelta(days=1)
+
+    # Criação do objeto de pagamento
     new_payment = Payment(
         value=data['value'],
         expiration_date=expiration_date
     )
 
+    # Criação do objeto de pagamento PIX
     pix_obj = PixPayment()
     data_payment_pix = pix_obj.create_payment()
 
-    new_payment.bank_payment_id = data_payment_pix['payment_bank_id']
-    new_payment.qr_code = data_payment_pix['qr_code_path']
+    new_payment.bank_payment_id = data_payment_pix['payment_bank_id'] # Atribuição do ID do pagamento bancário
+    new_payment.qr_code = data_payment_pix['qr_code_path'] # Atribuição do caminho do QR Code
 
     db.session.add(new_payment)
     db.session.commit()
@@ -53,7 +57,7 @@ def get_pix_confirmation():
 # Rota para visualizar o status do pagamento PIX
 @app.route('/payments/pix/<int:payment_id>', methods=['GET'])
 def payment_pix_page(payment_id):
-    return 'pagamento pix'
+    return render_template('payment.html')
 
 
 if __name__ == '__main__':
