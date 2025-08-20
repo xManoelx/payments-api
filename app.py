@@ -3,12 +3,14 @@ from repository.database import db
 from db_models.payments import Payment
 from datetime import datetime, timedelta
 from payments.pix import PixPayment
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///payments.db' # URI do banco de dados
 app.config['SECRET_KEY'] = 'SECRET_KEY' # Chave secreta para criptografia
 
 db.init_app(app)
+socketio = SocketIO(app)
 
 # Rota para criar um pagamento via PIX
 @app.route('/payments/pix', methods=['POST'])
@@ -65,6 +67,14 @@ def payment_pix_page(payment_id):
                            host='http://127.0.0.1:5000', 
                            qr_code=payment.qr_code)
 
+# Secao websocket
+@socketio.on('connect')
+def handle_connect():
+    print('Cliente conectado')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Cliente desconectado')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)
