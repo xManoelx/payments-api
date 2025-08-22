@@ -54,12 +54,40 @@ def get_qr_code(file_name):
 # Rota para gerar confirmação do pix para pagamento
 @app.route('/payments/pix/confirmation', methods=['POST'])
 def get_pix_confirmation():
+    data = request.get_json()
+
+    # Validações para confirmação de pagamento
+    if 'bank_payment_id' not in data and 'value' not in data:
+        return jsonify({"message": "Dados de pagamento inválidos"}), 400
+
+    # Obtém o pagamento 
+    payment = Payment.query.filter_by(bank_payment_id=data.get('bank_payment_id')).first()
+
+    # Validações para existência do pagamento
+    if not payment or payment.paid:
+        return jsonify({"message": "Pagamento não encontrado"}), 404
+    
+    # Verifica se o valor de pagamento esta correto
+    if data.get('value') != payment.value:
+        return jsonify({"message": "Valor de pagamento incorreto"}), 400
+    
+    payment.paid = True
+    db.session.commit()
+    socketio.emit(f'payment-confirmed-{payment.id}')
     return jsonify({"message": "Confirmação do pagamento PIX gerada com sucesso!"}), 200
 
 # Rota para visualizar o status do pagamento PIX
 @app.route('/payments/pix/<int:payment_id>', methods=['GET'])
 def payment_pix_page(payment_id):
     payment = Payment.query.get(payment_id)  # Verifica se o pagamento existe
+
+    if not payment:
+        return render_template('404.html'), 404
+
+    if payment.paid:
+        return render_template('confirmed_payment.html', 
+                               payment_id=payment_id,
+                               value=payment.value)
 
     return render_template('payment.html', 
                            payment_id=payment_id, 
